@@ -1,0 +1,8 @@
+qdm:
+  baseURL: ecapis.qdm.cloud
+  clientID: your_client_id
+  clientSecret: your_client_secret
+
+persistence:
+  address: mongodb://localhost:27017
+  database: qdm
