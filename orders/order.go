@@ -1,12 +1,38 @@
 package orders
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/bsontype"
+)
+
+type QDMTime time.Time
+
+func (t *QDMTime) UnmarshalJSON(data []byte) error {
+	var tsStr string
+	if err := json.Unmarshal(data, &tsStr); err != nil {
+		return err
+	}
+
+	ts, _ := time.ParseInLocation("2006-01-02T15:04:05", tsStr, time.Local)
+
+	*t = QDMTime(ts)
+
+	return nil
+}
+
+func (t QDMTime) MarshalBSONValue() (bsontype.Type, []byte, error) {
+	dt := time.Time(t)
+	return bson.MarshalValue(dt)
+}
 
 type Order struct {
 	OrderID                int                `json:"order_id" bson:"order_id"`                                 // 訂單編號
 	BuyButtonID            string             `json:"bb_id" bson:"bb_id"`                                       // Buy Button 專屬編號
 	OrderStatus            int                `json:"order_status" bson:"order_status"`                         // 訂單狀態 (1=待處理, 2=處理中, 3=已配送, 4=已取消, 5=已完成, 6=調貨中。或店家另新增的狀態)
-	DateAdded              time.Time          `json:"date_added" bson:"date_added"`                             // 購買日期
+	DateAdded              QDMTime            `json:"date_added" bson:"date_added"`                             // 購買日期
 	OrderItems             []OrderItem        `json:"order_items" bson:"order_items"`                           // 購買商品集合
 	OrderSubtotals         []OrderSubtotals   `json:"order_subtotals" bson:"order_subtotals"`                   // 訂單小計項目
 	Total                  float64            `json:"total" bson:"total"`                                       // 訂單總金額
@@ -48,7 +74,7 @@ type Order struct {
 	ShippingStatus         string             `json:"shipping_status" bson:"shipping_status"`                   // 配送狀態 (PENDING=等待出貨, SHIPPED=已出貨, PICKREADY=貨到門市, DELIVERED=已取貨, EXCEPTION=配送失敗退回, ABANDONED=七天未取)
 	TrackingNumber         string             `json:"tracking_number" bson:"tracking_number"`                   // 包裹追蹤碼
 	PaymentStatus          string             `json:"payment_status" bson:"payment_status"`                     // 付款狀態 (PAID=已付款, UNPAID=尚未付款)
-	PaymentTime            time.Time          `json:"payment_time" bson:"payment_time"`                         // 付款時間
+	PaymentTime            QDMTime            `json:"payment_time" bson:"payment_time"`                         // 付款時間
 	PaymentBanks           string             `json:"payment_banks" bson:"payment_banks"`                       // 付款來源
 	PaymentAccount         string             `json:"payment_account" bson:"payment_account"`                   // 付款帳號
 	InvoiceNumber          string             `json:"invoice_number" bson:"invoice_number"`                     // 發票號碼
@@ -59,7 +85,7 @@ type Order struct {
 	InvoiceLovecode        string             `json:"invoice_lovecode" bson:"invoice_lovecode"`                 // 捐贈愛心碼
 	InvoiceTitle           string             `json:"invoice_title" bson:"invoice_title"`                       // 發票抬頭
 	InvoiceAddress         string             `json:"invoice_address" bson:"invoice_address"`                   // 發票地址
-	InvoiceCreatedAt       time.Time          `json:"invoice_created_at" bson:"invoice_created_at"`             // 發票開立時間
+	InvoiceCreatedAt       QDMTime            `json:"invoice_created_at" bson:"invoice_created_at"`             // 發票開立時間
 	MaRID                  string             `json:"ma_rid" bson:"ma_rid"`                                     // 美安 rid
 	MaClickID              string             `json:"ma_click_id" bson:"ma_click_id"`                           // 美安 click_id
 	LineECID               string             `json:"line_ecid" bson:"line_ecid"`                               // LINE 購物 ecid
@@ -68,7 +94,7 @@ type Order struct {
 	UTMMedium              string             `json:"utm_medium" bson:"utm_medium"`                             // utm_medium
 	UTMCampaign            string             `json:"utm_campaign" bson:"utm_campaign"`                         // utm_campaign
 	AffiliateID            string             `json:"affiliate_id" bson:"affiliate_id"`                         // 分銷合作 KOL 專屬編號
-	DateModified           time.Time          `json:"date_modified" bson:"date_modified"`                       // 最近修改時間
+	DateModified           QDMTime            `json:"date_modified" bson:"date_modified"`                       // 最近修改時間
 	ReturnRequest          int                `json:"return_request" bson:"return_request"`                     // 此單是否申請退換貨 (0=無, 1=是)
 	ReturnID               int                `json:"return_id" bson:"return_id"`                               // 退換貨單號
 	ReturnStatusID         int                `json:"return_status_id" bson:"return_status_id"`                 // 退換貨處理狀態 (1=待處理, 2=等待商品到貨, 3=已完成)
@@ -78,7 +104,7 @@ type Order struct {
 	ReturnComment          string             `json:"return_comment" bson:"return_comment"`                     // 退換貨申請人留言
 	ReturnAddress          string             `json:"return_address" bson:"return_address"`                     // 退換貨申請收貨地址
 	ReturnReturnBank       string             `json:"return_return_bank" bson:"return_return_bank"`             // 退換貨申請退款銀行
-	ReturnDateAdded        time.Time          `json:"return_date_added" bson:"return_date_added"`               // 退換貨申請時間
+	ReturnDateAdded        QDMTime            `json:"return_date_added" bson:"return_date_added"`               // 退換貨申請時間
 	ReturnItems            []OrderReturnItems `json:"return_items" bson:"return_items"`                         // 退換貨商品
 }
 
@@ -94,7 +120,7 @@ type OrderItem struct {
 }
 
 type OrderProductOption struct {
-	ID    string `json:"id" bson:"id"`       // 選項值編號
+	ID    int    `json:"id" bson:"id"`       // 選項值編號
 	Name  string `json:"name" bson:"name"`   // 選項名稱
 	Value string `json:"value" bson:"value"` // 選項值
 }
