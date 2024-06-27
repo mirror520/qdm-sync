@@ -16,7 +16,7 @@ type Service interface {
 	Authorize(id string, secret string) (*AuthData, error)
 	OrderCount(start time.Time, end time.Time, opts ...OrderOption) (int64, error)
 	FindOrders(start time.Time, end time.Time, opts ...OrderOption) (Iterator, error)
-	FindCustomerGroups() ([]*orders.CustomerGroup, error)
+	FindCustomerGroups() ([]orders.CustomerGroup, error)
 	Close()
 }
 
@@ -348,7 +348,7 @@ func (it iterator) handle(ctx context.Context, errCh <-chan error) {
 	}
 }
 
-func (svc *service) FindCustomerGroups() ([]*orders.CustomerGroup, error) {
+func (svc *service) FindCustomerGroups() ([]orders.CustomerGroup, error) {
 	var result Result
 
 	resp, err := svc.client.R().

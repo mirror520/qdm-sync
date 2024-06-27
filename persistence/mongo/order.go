@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -65,7 +64,7 @@ func (repo *orderRepository) Store(orders []orders.Order) error {
 
 	docs := make([]any, len(orders))
 	for i, o := range orders {
-		docs[i] = bson.M(o)
+		docs[i] = o
 	}
 
 	_, err := coll.InsertMany(ctx, docs)
@@ -76,7 +75,7 @@ func (repo *orderRepository) Store(orders []orders.Order) error {
 	return nil
 }
 
-func (repo *orderRepository) StoreCustomerGroups(groups []*orders.CustomerGroup) error {
+func (repo *orderRepository) StoreCustomerGroups(groups []orders.CustomerGroup) error {
 	coll := repo.db.Collection("customer_groups")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
