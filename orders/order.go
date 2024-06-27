@@ -2,6 +2,8 @@ package orders
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -119,10 +121,38 @@ type OrderItem struct {
 	Giveaway  int                  `json:"giveaway" bson:"giveaway"`     // 是否為贈品
 }
 
+type OrderProductOptionID string
+
+func (id *OrderProductOptionID) UnmarshalJSON(data []byte) error {
+	var i any
+	if err := json.Unmarshal(data, &i); err != nil {
+		return err
+	}
+
+	switch val := i.(type) {
+	case float64:
+		str := fmt.Sprintf("%v", val)
+		*id = OrderProductOptionID(str)
+
+	case string:
+		*id = OrderProductOptionID(val)
+
+	default:
+		return errors.New("invalid type")
+	}
+
+	return nil
+}
+
+func (id OrderProductOptionID) MarshalBSONValue() (bsontype.Type, []byte, error) {
+	i := string(id)
+	return bson.MarshalValue(i)
+}
+
 type OrderProductOption struct {
-	ID    int    `json:"id" bson:"id"`       // 選項值編號
-	Name  string `json:"name" bson:"name"`   // 選項名稱
-	Value string `json:"value" bson:"value"` // 選項值
+	ID    OrderProductOptionID `json:"id" bson:"id"`       // 選項值編號
+	Name  string               `json:"name" bson:"name"`   // 選項名稱
+	Value string               `json:"value" bson:"value"` // 選項值
 }
 
 type OrderSubtotals struct {
@@ -131,12 +161,40 @@ type OrderSubtotals struct {
 	Value int    `json:"value" bson:"value"` // 小計金額
 }
 
+type OrderReturnItemsProductID string
+
+func (id *OrderReturnItemsProductID) UnmarshalJSON(data []byte) error {
+	var i any
+	if err := json.Unmarshal(data, &i); err != nil {
+		return err
+	}
+
+	switch val := i.(type) {
+	case float64:
+		str := fmt.Sprintf("%v", val)
+		*id = OrderReturnItemsProductID(str)
+
+	case string:
+		*id = OrderReturnItemsProductID(val)
+
+	default:
+		return errors.New("invalid type")
+	}
+
+	return nil
+}
+
+func (id OrderReturnItemsProductID) MarshalBSONValue() (bsontype.Type, []byte, error) {
+	i := string(id)
+	return bson.MarshalValue(i)
+}
+
 type OrderReturnItems struct {
-	ProductID        int    `json:"product_id" bson:"product_id"`                 // 商品編號
-	Name             string `json:"name" bson:"name"`                             // 商品名稱
-	SKU              string `json:"sku" bson:"sku"`                               // SKU
-	Quantity         int    `json:"quantity" bson:"quantity"`                     // 數量
-	Price            int    `json:"price" bson:"price"`                           // 價格
-	ReturnReasonID   int    `json:"return_reason_id" bson:"return_reason_id"`     // 退換貨申請原因代號
-	ReturnReasonName string `json:"return_reason_name" bson:"return_reason_name"` // 退換貨申請原因
+	ProductID        OrderReturnItemsProductID `json:"product_id" bson:"product_id"`                 // 商品編號
+	Name             string                    `json:"name" bson:"name"`                             // 商品名稱
+	SKU              string                    `json:"sku" bson:"sku"`                               // SKU
+	Quantity         int                       `json:"quantity" bson:"quantity"`                     // 數量
+	Price            int                       `json:"price" bson:"price"`                           // 價格
+	ReturnReasonID   int                       `json:"return_reason_id" bson:"return_reason_id"`     // 退換貨申請原因代號
+	ReturnReasonName string                    `json:"return_reason_name" bson:"return_reason_name"` // 退換貨申請原因
 }

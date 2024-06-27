@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "${fileDirname}",
-            "args": [ "sync", "orders", "--start", "2024-06-27T00:00:00+08:00" ]
+            "args": [ "sync", "orders", "--start", "2023-01-01T00:00:00+08:00" ]
         }
     ]
 }
