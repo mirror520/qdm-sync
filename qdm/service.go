@@ -16,6 +16,7 @@ type Service interface {
 	Authorize(id string, secret string) (*AuthData, error)
 	OrderCount(start time.Time, end time.Time, opts ...OrderOption) (int64, error)
 	FindOrders(start time.Time, end time.Time, opts ...OrderOption) (Iterator, error)
+	FindCustomerGroups() ([]*orders.CustomerGroup, error)
 	Close()
 }
 
@@ -345,4 +346,35 @@ func (it iterator) handle(ctx context.Context, errCh <-chan error) {
 			return
 		}
 	}
+}
+
+func (svc *service) FindCustomerGroups() ([]*orders.CustomerGroup, error) {
+	var result Result
+
+	resp, err := svc.client.R().
+		SetAuthToken(svc.token).
+		SetResult(&result).
+		SetError(&Result{}).
+		ForceContentType("application/json").
+		Get("/customers/group")
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		result, ok := resp.Error().(*Result)
+		if !ok {
+			return nil, errors.New(resp.String())
+		}
+
+		return nil, result.Error()
+	}
+
+	data, err := result.CustomerGroupData()
+	if err != nil {
+		return nil, err
+	}
+
+	return data.Result, nil
 }

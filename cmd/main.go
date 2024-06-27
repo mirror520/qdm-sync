@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/urfave/cli/v2"
@@ -24,28 +26,37 @@ func main() {
 			{
 				Name:        "sync",
 				Description: "Initiates data synchronization.",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "path",
-						Usage:   "Specifies the working directory",
-						EnvVars: []string{"QDM_PATH"},
+				Subcommands: []*cli.Command{
+					{
+						Name: "orders",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:    "path",
+								Usage:   "Specifies the working directory",
+								EnvVars: []string{"QDM_PATH"},
+							},
+							&cli.TimestampFlag{
+								Name:     "start-time",
+								Aliases:  []string{"start", "since"},
+								Layout:   time.RFC3339,
+								Timezone: time.Local,
+								Required: true,
+							},
+							&cli.TimestampFlag{
+								Name:     "end-time",
+								Aliases:  []string{"end"},
+								Layout:   time.RFC3339,
+								Timezone: time.Local,
+								Value:    cli.NewTimestamp(time.Now()),
+							},
+						},
+						Action: synchronize,
 					},
-					&cli.TimestampFlag{
-						Name:     "start-time",
-						Aliases:  []string{"start", "since"},
-						Layout:   "2006-01-02T15:04:05",
-						Timezone: time.Local,
-						Required: true,
-					},
-					&cli.TimestampFlag{
-						Name:     "end-time",
-						Aliases:  []string{"end"},
-						Layout:   "2006-01-02T15:04:05",
-						Timezone: time.Local,
-						Value:    cli.NewTimestamp(time.Now()),
+					{
+						Name:   "customer-groups",
+						Action: syncCustomerGroups,
 					},
 				},
-				Action: synchronize,
 			},
 		},
 		Flags: []cli.Flag{
@@ -53,12 +64,6 @@ func main() {
 				Name:    "path",
 				Usage:   "Specifies the working directory",
 				EnvVars: []string{"QDM_PATH"},
-			},
-			&cli.IntFlag{
-				Name:    "port",
-				Usage:   "Specifies the HTTP service port",
-				Value:   8080,
-				EnvVars: []string{"QDM_HTTP_PORT"},
 			},
 		},
 		Action: run,
@@ -116,7 +121,7 @@ func synchronize(cli *cli.Context) error {
 		end = *endTS
 	}
 
-	ch, n, err := svc.Sync(start, end)
+	ch, n, err := svc.SyncOrders(start, end)
 	if err != nil {
 		return err
 	}
@@ -142,5 +147,51 @@ func synchronize(cli *cli.Context) error {
 
 	progress.Wait()
 
+	return nil
+}
+
+func syncCustomerGroups(cli *cli.Context) error {
+	path := cli.String("path")
+	if path == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+
+		path = homeDir + "/.qdm-sync"
+	}
+
+	f, err := os.Open(path + "/config.yaml")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	var cfg *sync.Config
+	if err := yaml.NewDecoder(f).Decode(&cfg); err != nil {
+		return err
+	}
+
+	qdm, err := qdm.NewService(cfg.QDM)
+	if err != nil {
+		return err
+	}
+	defer qdm.Close()
+
+	repo, err := mongo.NewOrderRepository(cfg.Persistence)
+	if err != nil {
+		return err
+	}
+	defer repo.Disconnected()
+
+	svc := sync.NewService(qdm, repo)
+	defer svc.Close()
+
+	n, err := svc.SyncCustomerGroups()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("record stored: " + strconv.Itoa(n))
 	return nil
 }

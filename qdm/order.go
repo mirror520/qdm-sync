@@ -44,27 +44,6 @@ type SearchCriteria struct {
 	PageCount  int `json:"page_count"`  // 總頁數
 }
 
-type OrderStatus int
-
-const (
-	Unknown OrderStatus = iota
-	Pending
-	InProgress
-	Shopped
-	Canceled
-	Completed
-	InTransit
-	// Add more statuses if needed
-)
-
-// TODO
-type Order struct {
-	OrderID     int         `json:"order_id"`     // 訂單編號
-	BuyButtonID string      `json:"bb_id"`        // Buy Button 專屬編號
-	Status      OrderStatus `json:"order_status"` // 訂單狀態
-	// ChatGPT, help me...
-}
-
 type OrderParams struct {
 	CreatedAtMin time.Time // 起始時間 (required)
 	CreatedAtMax time.Time // 結束時間 (required)

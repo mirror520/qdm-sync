@@ -12,7 +12,8 @@ import (
 )
 
 type Service interface {
-	Sync(start time.Time, end time.Time) (<-chan Progress, int64, error)
+	SyncOrders(start time.Time, end time.Time) (<-chan Progress, int64, error)
+	SyncCustomerGroups() (int, error)
 	Close()
 }
 
@@ -42,7 +43,7 @@ type Progress struct {
 	Current int64
 }
 
-func (svc *service) Sync(start time.Time, end time.Time) (<-chan Progress, int64, error) {
+func (svc *service) SyncOrders(start time.Time, end time.Time) (<-chan Progress, int64, error) {
 	it, err := svc.qdm.FindOrders(start, end)
 	if err != nil {
 		return nil, 0, err
@@ -98,6 +99,19 @@ func (svc *service) Sync(start time.Time, end time.Time) (<-chan Progress, int64
 	}(svc.ctx, it, ch)
 
 	return ch, progress.Total, nil
+}
+
+func (svc *service) SyncCustomerGroups() (int, error) {
+	groups, err := svc.qdm.FindCustomerGroups()
+	if err != nil {
+		return 0, err
+	}
+
+	if err := svc.orders.StoreCustomerGroups(groups); err != nil {
+		return 0, err
+	}
+
+	return len(groups), nil
 }
 
 func (svc *service) Close() {

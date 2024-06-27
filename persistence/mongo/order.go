@@ -76,6 +76,25 @@ func (repo *orderRepository) Store(orders []orders.Order) error {
 	return nil
 }
 
+func (repo *orderRepository) StoreCustomerGroups(groups []*orders.CustomerGroup) error {
+	coll := repo.db.Collection("customer_groups")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	docs := make([]any, len(groups))
+	for i, g := range groups {
+		docs[i] = g
+	}
+
+	_, err := coll.InsertMany(ctx, docs)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (repo *orderRepository) Disconnected() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

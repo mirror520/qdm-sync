@@ -50,3 +50,8 @@ func (r *Result) OrderData() (data *OrderData, err error) {
 	err = json.Unmarshal(r.Data, &data)
 	return
 }
+
+func (r *Result) CustomerGroupData() (data *CustomerGroupData, err error) {
+	err = json.Unmarshal(r.Data, &data)
+	return
+}
