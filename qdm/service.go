@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -284,11 +285,12 @@ type Iterator interface {
 }
 
 type iterator struct {
-	count  int64
-	ch     chan orders.Order
-	errCh  <-chan error
-	ctx    context.Context
-	cancel context.CancelCauseFunc
+	count     int64
+	ch        chan orders.Order
+	errCh     <-chan error
+	ctx       context.Context
+	cancel    context.CancelCauseFunc
+	closeOnce sync.Once
 }
 
 func (it *iterator) Fetch(batch int) ([]orders.Order, error) {
@@ -315,16 +317,15 @@ func (it *iterator) Count() int64 {
 }
 
 func (it *iterator) Close(err error) {
-	if it.cancel != nil {
-		it.cancel(err)
-	}
+	it.closeOnce.Do(func() {
+		if it.cancel != nil {
+			it.cancel(err)
+		}
 
-	if it.ch != nil && len(it.ch) > 0 {
-		close(it.ch)
-	}
-
-	it.ch = nil
-	it.cancel = nil
+		if it.ch != nil {
+			close(it.ch)
+		}
+	})
 }
 
 func (it *iterator) Done() <-chan struct{} {
@@ -335,7 +336,7 @@ func (it *iterator) Error() error {
 	return it.ctx.Err()
 }
 
-func (it iterator) handle(ctx context.Context, errCh <-chan error) {
+func (it *iterator) handle(ctx context.Context, errCh <-chan error) {
 	for {
 		select {
 		case <-ctx.Done():
