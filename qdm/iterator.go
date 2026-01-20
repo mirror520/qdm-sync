@@ -15,6 +15,7 @@ type Iterator interface {
 
 type iterator struct {
 	count     int64
+	cursor    int64
 	ch        chan any
 	errCh     <-chan error
 	ctx       context.Context
@@ -23,10 +24,18 @@ type iterator struct {
 }
 
 func (it *iterator) Fetch(batch int) ([]any, error) {
-	items := make([]any, 0)
+	if it.cursor >= it.count {
+		return nil, EOF
+	}
 
+	items := make([]any, 0)
 	for item := range it.ch {
 		items = append(items, item)
+		it.cursor++
+
+		if it.cursor >= it.count {
+			return items, nil
+		}
 
 		if len(items) == batch {
 			return items, nil

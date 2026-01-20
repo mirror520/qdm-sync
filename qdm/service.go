@@ -329,22 +329,6 @@ func (svc *service) FindCustomers(start time.Time, end time.Time) (Iterator, err
 	ch := make(chan any, params.PageSize*2)
 	errCh := make(chan error)
 	go func(ch chan<- any, errCh chan<- error) {
-		defer func() {
-			recover()
-			errCh <- errors.New("force close")
-		}()
-
-		defer func(ch chan<- any) {
-			for {
-				if len(ch) == 0 {
-					close(ch)
-					return
-				}
-
-				time.Sleep(500 * time.Millisecond)
-			}
-		}(ch)
-
 		for {
 			var result Result
 
@@ -389,7 +373,6 @@ func (svc *service) FindCustomers(start time.Time, end time.Time) (Iterator, err
 
 			sc := data.SearchCriteria
 			if sc.PageNumber == sc.PageCount {
-				errCh <- EOF
 				return
 			}
 
