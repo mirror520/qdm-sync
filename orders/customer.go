@@ -7,8 +7,8 @@ type AddressInfo struct {
 }
 
 type CustomerUpgradeHistory struct {
-	PreviousCustomerGroupID int     `json:"previous_customer_group_id" bson:"previous_customer_group_id"` // 升等前(舊的)會員群組
-	RecentCustomerGroupID   int     `json:"recent_customer_group_id" bson:"recent_customer_group_id"`     // 升等後(新的)會員群組
+	PreviousCustomerGroupID string  `json:"previous_customer_group_id" bson:"previous_customer_group_id"` // 升等前(舊的)會員群組
+	RecentCustomerGroupID   string  `json:"recent_customer_group_id" bson:"recent_customer_group_id"`     // 升等後(新的)會員群組
 	EffectiveDate           QDMTime `json:"effective_date" bson:"effective_date"`                         // 升等生效時間
 }
 
@@ -17,7 +17,7 @@ type CartItem struct {
 }
 
 type RewardRow struct {
-	OrderID     int     `json:"order_id" bson:"order_id"`       // 訂單編號
+	OrderID     string  `json:"order_id" bson:"order_id"`       // 訂單編號
 	Description string  `json:"description" bson:"description"` // 紅利項目說明
 	Points      int     `json:"points" bson:"points"`           // 紅利積點或折抵 (-負號表示折抵)
 	DateAdded   QDMTime `json:"date_added" bson:"date_added"`   // 項目新增時間
@@ -45,7 +45,7 @@ type Customer struct {
 	Approved            int                      `json:"approved" bson:"approved"`                           // 會員資格審核 (0=等待審核, 1=核准)
 	DateAdded           QDMTime                  `json:"date_added" bson:"date_added"`                       // 加入日期
 	DateModified        QDMTime                  `json:"date_modified" bson:"date_modified"`                 // 資料異動時間
-	AddressInfo         []AddressInfo            `json:"address_info" bson:"address_info"`                   // 預設地址(會員中心)
+	AddressInfo         AddressInfo              `json:"address_info" bson:"address_info"`                   // 預設地址(會員中心)
 	UpgradeHistoryInfo  []CustomerUpgradeHistory `json:"upgrade_history_info" bson:"upgrade_history_info"`   // 會員升等(群組異動)歷程
 	TotalPurchaseAmount int                      `json:"total_purchase_amount" bson:"total_purchase_amount"` // 累積消費金額 (已付款, 不含已取消)
 	Cart                []CartItem               `json:"cart" bson:"cart"`                                   // 購物車商品集合

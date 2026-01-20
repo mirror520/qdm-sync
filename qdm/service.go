@@ -187,7 +187,7 @@ func (svc *service) FindOrders(start time.Time, end time.Time, opts ...OrderOpti
 		return nil, errors.New("empty data")
 	}
 
-	ch := make(chan any, params.PageNumber/2)
+	ch := make(chan any, params.PageSize*2)
 	errCh := make(chan error)
 	go func(ch chan<- any, errCh chan<- error) {
 		defer func() {
@@ -326,7 +326,7 @@ func (svc *service) FindCustomers(start time.Time, end time.Time) (Iterator, err
 		return nil, errors.New("empty data")
 	}
 
-	ch := make(chan any, params.PageNumber/2)
+	ch := make(chan any, params.PageSize*2)
 	errCh := make(chan error)
 	go func(ch chan<- any, errCh chan<- error) {
 		defer func() {
@@ -383,8 +383,8 @@ func (svc *service) FindCustomers(start time.Time, end time.Time) (Iterator, err
 				return
 			}
 
-			for _, o := range data.Result {
-				ch <- o
+			for _, c := range data.Result {
+				ch <- c
 			}
 
 			sc := data.SearchCriteria

@@ -59,6 +59,7 @@ func (svc *service) SyncOrders(start time.Time, end time.Time) (<-chan Progress,
 	go func(ctx context.Context, it qdm.Iterator, ch chan<- Progress) {
 		log := svc.log.With(
 			zap.String("action", "sync"),
+			zap.String("entity", "orders"),
 			zap.Int64("count", it.Count()),
 		)
 
@@ -128,6 +129,7 @@ func (svc *service) SyncCustomers(start time.Time, end time.Time) (<-chan Progre
 	go func(ctx context.Context, it qdm.Iterator, ch chan<- Progress) {
 		log := svc.log.With(
 			zap.String("action", "sync"),
+			zap.String("entity", "customers"),
 			zap.Int64("count", it.Count()),
 		)
 
