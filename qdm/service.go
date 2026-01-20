@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -15,9 +14,14 @@ import (
 
 type Service interface {
 	Authorize(id string, secret string) (*AuthData, error)
-	OrderCount(start time.Time, end time.Time, opts ...OrderOption) (int64, error)
+
+	CountOrders(start time.Time, end time.Time, opts ...OrderOption) (int64, error)
 	FindOrders(start time.Time, end time.Time, opts ...OrderOption) (Iterator, error)
+
+	CountCustomers(start time.Time, end time.Time) (int64, error)
+	FindCustomers(start time.Time, end time.Time) (Iterator, error)
 	FindCustomerGroups() ([]orders.CustomerGroup, error)
+
 	Close()
 }
 
@@ -121,7 +125,7 @@ func (svc *service) refreshToken(ctx context.Context, auth *AuthData) {
 	}
 }
 
-func (svc *service) OrderCount(start time.Time, end time.Time, opts ...OrderOption) (int64, error) {
+func (svc *service) CountOrders(start time.Time, end time.Time, opts ...OrderOption) (int64, error) {
 	params := &OrderParams{
 		CreatedAtMin: start,
 		CreatedAtMax: end,
@@ -174,7 +178,7 @@ func (svc *service) FindOrders(start time.Time, end time.Time, opts ...OrderOpti
 		opt.apply(params)
 	}
 
-	count, err := svc.OrderCount(start, end, opts...)
+	count, err := svc.CountOrders(start, end, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -183,15 +187,15 @@ func (svc *service) FindOrders(start time.Time, end time.Time, opts ...OrderOpti
 		return nil, errors.New("empty data")
 	}
 
-	ch := make(chan orders.Order, params.PageNumber/2)
+	ch := make(chan any, params.PageNumber/2)
 	errCh := make(chan error)
-	go func(ch chan<- orders.Order, errCh chan<- error) {
+	go func(ch chan<- any, errCh chan<- error) {
 		defer func() {
 			recover()
 			errCh <- errors.New("force close")
 		}()
 
-		defer func(ch chan<- orders.Order) {
+		defer func(ch chan<- any) {
 			for {
 				if len(ch) == 0 {
 					close(ch)
@@ -268,85 +272,143 @@ func (svc *service) FindOrders(start time.Time, end time.Time, opts ...OrderOpti
 	return it, nil
 }
 
-func (svc *service) Close() {
-	if svc.cancel != nil {
-		svc.cancel()
+func (svc *service) CountCustomers(start time.Time, end time.Time) (int64, error) {
+	params := &CustomerParams{
+		CreatedAtMin: start,
+		CreatedAtMax: end,
 	}
 
-	svc.cancel = nil
-}
+	var result Result
 
-type Iterator interface {
-	Fetch(batch int) ([]orders.Order, error)
-	Count() int64
-	Close(err error)
-	Done() <-chan struct{}
-	Error() error
-}
+	resp, err := svc.client.R().
+		SetAuthToken(svc.token).
+		SetFormDataFromValues(params.Values()).
+		SetResult(&result).
+		SetError(&Result{}).
+		ForceContentType("application/json").
+		Get("/customers/count")
 
-type iterator struct {
-	count     int64
-	ch        chan orders.Order
-	errCh     <-chan error
-	ctx       context.Context
-	cancel    context.CancelCauseFunc
-	closeOnce sync.Once
-}
-
-func (it *iterator) Fetch(batch int) ([]orders.Order, error) {
-	orders := make([]orders.Order, 0)
-
-	for order := range it.ch {
-		orders = append(orders, order)
-
-		if len(orders) == batch {
-			return orders, nil
-		}
+	if err != nil {
+		return 0, err
 	}
 
-	// channel closed
-	if len(orders) == 0 {
-		return nil, EOF
+	if resp.StatusCode() != http.StatusOK {
+		result, ok := resp.Error().(*Result)
+		if !ok {
+			return 0, errors.New(resp.String())
+		}
+
+		return 0, result.Error()
 	}
 
-	return orders, nil
-}
-
-func (it *iterator) Count() int64 {
-	return it.count
-}
-
-func (it *iterator) Close(err error) {
-	it.closeOnce.Do(func() {
-		if it.cancel != nil {
-			it.cancel(err)
-		}
-
-		if it.ch != nil {
-			close(it.ch)
-		}
-	})
-}
-
-func (it *iterator) Done() <-chan struct{} {
-	return it.ctx.Done()
-}
-
-func (it *iterator) Error() error {
-	return it.ctx.Err()
-}
-
-func (it *iterator) handle(ctx context.Context, errCh <-chan error) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-
-		case err := <-errCh:
-			it.Close(err)
-			return
-		}
+	data, err := result.CustomerCountData()
+	if err != nil {
+		return 0, err
 	}
+
+	return data.Count, nil
+}
+
+func (svc *service) FindCustomers(start time.Time, end time.Time) (Iterator, error) {
+	params := &CustomerParams{
+		CreatedAtMin: start,
+		CreatedAtMax: end,
+		PageSize:     300,
+		PageNumber:   1,
+	}
+
+	count, err := svc.CountCustomers(start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	if count == 0 {
+		return nil, errors.New("empty data")
+	}
+
+	ch := make(chan any, params.PageNumber/2)
+	errCh := make(chan error)
+	go func(ch chan<- any, errCh chan<- error) {
+		defer func() {
+			recover()
+			errCh <- errors.New("force close")
+		}()
+
+		defer func(ch chan<- any) {
+			for {
+				if len(ch) == 0 {
+					close(ch)
+					return
+				}
+
+				time.Sleep(500 * time.Millisecond)
+			}
+		}(ch)
+
+		for {
+			var result Result
+
+			resp, err := svc.client.R().
+				SetAuthToken(svc.token).
+				SetFormDataFromValues(params.Values()).
+				SetResult(&result).
+				SetError(&Result{}).
+				ForceContentType("application/json").
+				Get("/customers")
+
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			if resp.StatusCode() != http.StatusOK {
+				result, ok := resp.Error().(*Result)
+				if !ok {
+					errCh <- errors.New(resp.String())
+					return
+				}
+
+				errCh <- result.Error()
+				return
+			}
+
+			data, err := result.CustomerData()
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			if data.Count == 0 {
+				errCh <- EOF
+				return
+			}
+
+			for _, o := range data.Result {
+				ch <- o
+			}
+
+			sc := data.SearchCriteria
+			if sc.PageNumber == sc.PageCount {
+				errCh <- EOF
+				return
+			}
+
+			params.PageNumber++
+		}
+	}(ch, errCh)
+
+	ctx, cancel := context.WithCancelCause(svc.ctx)
+	it := &iterator{
+		count:  count,
+		ch:     ch,
+		errCh:  errCh,
+		ctx:    ctx,
+		cancel: cancel,
+	}
+
+	go it.handle(ctx, errCh)
+
+	return it, nil
 }
 
 func (svc *service) FindCustomerGroups() ([]orders.CustomerGroup, error) {
@@ -378,4 +440,12 @@ func (svc *service) FindCustomerGroups() ([]orders.CustomerGroup, error) {
 	}
 
 	return data.Result, nil
+}
+
+func (svc *service) Close() {
+	if svc.cancel != nil {
+		svc.cancel()
+	}
+
+	svc.cancel = nil
 }

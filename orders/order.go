@@ -95,6 +95,8 @@ type Order struct {
 	UTMSource              string             `json:"utm_source" bson:"utm_source"`                             // utm_source
 	UTMMedium              string             `json:"utm_medium" bson:"utm_medium"`                             // utm_medium
 	UTMCampaign            string             `json:"utm_campaign" bson:"utm_campaign"`                         // utm_campaign
+	UTMContent             string             `json:"utm_content" bson:"utm_content"`                           // utm_content
+	UTMTerm                string             `json:"utm_term" bson:"utm_term"`                                 // utm_term
 	AffiliateID            string             `json:"affiliate_id" bson:"affiliate_id"`                         // 分銷合作 KOL 專屬編號
 	DateModified           QDMTime            `json:"date_modified" bson:"date_modified"`                       // 最近修改時間
 	ReturnRequest          int                `json:"return_request" bson:"return_request"`                     // 此單是否申請退換貨 (0=無, 1=是)

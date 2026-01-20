@@ -68,11 +68,22 @@ func (repo *orderRepository) Store(orders []orders.Order) error {
 	}
 
 	_, err := coll.InsertMany(ctx, docs)
-	if err != nil {
-		return err
+	return err
+}
+
+func (repo *orderRepository) StoreCustomers(customers []orders.Customer) error {
+	coll := repo.db.Collection("customers")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	docs := make([]any, len(customers))
+	for i, c := range customers {
+		docs[i] = c
 	}
 
-	return nil
+	_, err := coll.InsertMany(ctx, docs)
+	return err
 }
 
 func (repo *orderRepository) StoreCustomerGroups(groups []orders.CustomerGroup) error {
@@ -87,11 +98,7 @@ func (repo *orderRepository) StoreCustomerGroups(groups []orders.CustomerGroup) 
 	}
 
 	_, err := coll.InsertMany(ctx, docs)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (repo *orderRepository) Disconnected() error {
